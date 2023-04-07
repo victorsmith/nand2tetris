@@ -31,7 +31,7 @@ CHIP ALU {
         x[16], y[16],  // 16-bit inputs        
         zx, // zero the x input?
         nx, // negate the x input?
-        zy, // zero the y input?
+        zy, // zero the y input?s
         ny, // negate the y input?
         f,  // compute out = x + y (if 1) or x & y (if 0)
         no; // negate the out output?
@@ -42,5 +42,32 @@ CHIP ALU {
         ng; // 1 if (out < 0),  0 otherwise
 
     PARTS:
-   // Put you code here:
+    // Put you code here:
+    
+    Mux16(a=x, b=false, sel=zx, out=zxRes);
+    Not16(in=zxRes, out=nxRes);
+    Mux16(a=zxRes, b=nxRes, sel=nx, out=xFin);
+    
+    Mux16(a=y, b=false, sel=zy, out=zyRes);
+    Not16(in=zyRes, out=nyRes);
+    Mux16(a=zyRes, b=nyRes, sel=ny, out=yFin);
+
+    // Add and And, then MUX
+    Add16(a=xFin, b=yFin, out=xPlusY);
+    And16(a=xFin, b=yFin, out=xAndY);
+    Mux16(a=xAndY, b=xPlusY, sel=f, out=fOut);
+
+    // Negate f output, then mux it
+    // Identify Negative => if MSB (outHigh[15]) is 1, then out is -ve \    
+    // Have to evaluate bit here due to the "sub bus of internal node may not be used" error 
+    Not16(in=fOut, out=nfOut);
+    Mux16(a=fOut, b=nfOut, sel=no, out[0..7]=low, out[8..15]=high, out[15]=ng, out=out);
+    
+    // Identify 0
+    // Check if any of the values in "outHigh" or "outLow" are 1 by running it through the "Or8Way" gate
+    // If either is 1, then zr is false (negate the output of Or) 
+    Or8Way(in=low, out=lowRes);
+    Or8Way(in=high, out=highRes);
+    Or(a=lowRes, b=highRes, out=nzr);
+    Not(in=nzr, out=zr);
 }

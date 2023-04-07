@@ -1,0 +1,27 @@
+// Solution with subsections of arrays
+Mux16(a[0..15]=x, b[0..15]=false, sel=zx, out[0..15]=resZx);
+Not16(in[0..15]=resZx, out[0..15]=notResZx);
+Mux16(a[0..15]=resZx, b[0..15]=notResZx, sel=nx, out[0..15]=resX);
+
+Mux16(a[0..15]=y, b=false, sel=zy, out[0..15]=resZy);
+Not16(in[0..15]=resZy, out[0..15]=notResZy);
+Mux16(a[0..15]=resZy, b[0..15]=notResZy, sel=ny, out[0..15]=resY);
+
+// Solve x+y and Solve x&y THEN determine output with Mux
+Add16(a[0..15]=resX, b[0..15]=resY, out[0..15]=xPlusY);    
+Add16(a[0..15]=resX, b[0..15]=resY, out[0..15]=xAndY);    
+Mux16(a[0..15]=xPlusY, b[0..15]=xAndY, sel=f, out[0..15]=resF);
+
+Not16(in[0..15]=resF, out[0..15]=notResF);
+
+// Identify Negative => if MSB (outHigh[15]) is 1, then out is -ve 
+// Have to evaluate bit here due to the "sub bus of internal node may not be used" error
+Mux16(a[0..15]=resF, b[0..15]=notResF, sel=no, out[0..7]=outLow, out[8..15]=outHigh, out[15]=ng, out=out);
+
+// Identify 0
+// Check if any of the values in "outHigh" or "outLow" are 1 by running it through the "Or8Way" gate
+// If either is 1, then zr is false (negate the output of Or)
+Or8Way(in[0..7]=outLow, out=lowR);
+Or8Way(in[0..7]=outHigh, out=highR);
+Or(a=lowR, b=highR, out=nzr);
+Not(in=nzr, out=zr);
