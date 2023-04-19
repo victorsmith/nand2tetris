@@ -17,4 +17,16 @@ CHIP PC {
 
     PARTS:
     // Put your code here:
+    // No need to check if only 1 load, reset or inc is set. 
+    // Instead just establish a heirarchy of precedence, and set up the mux's in that order 
+    // 1) Reset - Nulls everything
+    // 2) Load - Loads data. If data is loaded, the incremented result is ignored
+    // 3) Inc - Adds 1  to previous result
+
+    Register(in=resetOut, load=true, out=outLoop, out=out);
+    Mux16(a=loadOut, b=false, sel=reset, out=resetOut);    
+    Mux16(a=incOut, b=in, sel=load, out=loadOut);    
+    Mux16(a=outLoop, b=incLoadOut, sel=inc, out=incOut);    
+    Inc16(in=outLoop, out=incLoadOut);
+
 }
