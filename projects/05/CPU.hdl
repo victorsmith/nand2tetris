@@ -40,4 +40,34 @@ CHIP CPU {
 
     PARTS:
     // Put your code here:
+
+    // Determin if A or C instruction using instruction[15] (MSB) => aluOut is a constant value (data)
+    Mux16(a=instruction, b=aluOut, sel=instruction[15], out=instrType); 
+
+
+    // cccccc values determine the a load
+    
+    ARegister(in=instrType, load=instruction[3], out=aRegOut, out=aRegOutPC, out=addressM);
+    
+
+    // If a (instruction[12]) == 0 => use the aRegOut value
+    //                        else => use the inM value
+    Mux16(a=aRegOut, b=inM, sel=instruction[12], out=aluIn2);
+    
+
+    // 1-XXa-ccc-ccc-ddd-jjj
+
+    // If something is true in the 3 j bits => we're jumping
+    // If its not => we're incrementing
+    // If reset is true => nothing matters anyway (we're going to 0)
+    Or8Way(in=aRegOutPC[0..2], out=loadPc);
+    // If we're not loading a new value, then we're incrementing
+    // If the reset is true, it nulified load and inc so we 
+    // *shouldn't* need to worry about them
+    Not(in=loadPc, out=incPc);
+    PC(in=aRegOutPC, load=loadPc, inc=incPc, reset=reset, out=pc);    
+
+
+    DRegister(in=aluOut, load=instruction[4], out=dOut);
+    ALU(x=dOut, y=aluIn2, zx=, nx=, zy=, ny=, f=, no=, out=aluOut, out=outM, zr=, ng=);
 }
