@@ -63,7 +63,7 @@ CHIP ALU {
     Not16(in=fOut, out=nfOut);
     Mux16(a=fOut, b=nfOut, sel=no, out[0..7]=low, out[8..15]=high, out[15]=ng, out=out);
     
-    // Identify 0
+
     // Check if any of the values in "outHigh" or "outLow" are 1 by running it through the "Or8Way" gate
     // If either is 1, then zr is false (negate the output of Or) 
     Or8Way(in=low, out=lowRes);

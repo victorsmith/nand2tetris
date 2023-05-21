@@ -41,33 +41,76 @@ CHIP CPU {
     PARTS:
     // Put your code here:
 
-    // Determin if A or C instruction using instruction[15] (MSB) => aluOut is a constant value (data)
-    Mux16(a=instruction, b=aluOut, sel=instruction[15], out=instrType); 
+    // Determin if A or C instruction using instruction[15] (MSB)
+    Mux16(a=instruction, b=aluOut, sel=instruction[15], out=instr); 
 
+    // All A instructions are loaded into the A register  (instruction[15] == 0)
+    // SOME C instructions are loaded into the A register (when d3 aka instruction[5] == true)
+    Mux(a=true, b=instruction[5], sel=instruction[15], out=loadA);
 
-    // cccccc values determine the a load
-    
-    ARegister(in=instrType, load=instruction[3], out=aRegOut, out=aRegOutPC, out=addressM);
-    
+    ARegister(in=instr, load=loadA, out=aRegOut, out[0..2]=a02, out=aRegOutPC, out[0..14]=addressM );
 
     // If a (instruction[12]) == 0 => use the aRegOut value
     //                        else => use the inM value
-    Mux16(a=aRegOut, b=inM, sel=instruction[12], out=aluIn2);
+    Mux(a=false, b=instruction[12], sel=instruction[15], out=AorM);
+    Mux16(a=aRegOut, b=inM, sel=AorM, out=aluIn2);
     
-
     // 1-XXa-ccc-ccc-ddd-jjj
+    // FIXME: D should only load on C instructions
+    Mux(a=false, b=instruction[4], sel=instruction[15], out=loadD);
+    DRegister(in=aluOut, load=loadD, out=dOut);
 
-    // If something is true in the 3 j bits => we're jumping
+    ALU(x=dOut, y=aluIn2, 
+        zx=instruction[11], 
+        nx=instruction[10], 
+        zy=instruction[9], 
+        ny=instruction[8], 
+        f=instruction[7], 
+        no=instruction[6], 
+        out=aluOut, 
+        out=outM, 
+        zr=zr, 
+        ng=ng
+    );
+
+    // 111 000 110 000 0 100
+    // 111 0 001 100 000 100
+
+    Not(in=ng, out=Nng);
+    Not(in=zr, out=Nzr);
+
+    // TODO: Everything is backwards! Check jump code and condition at the same time => Evaluate jump with  Or8Way
+    // FIXME: This is a very interesting approach => Study in greater detail    
+
+    // To check postive, check !ng && !zr => No need to do 0 check for the ng, since it's handled for us by the ALU
+    And(a=Nng, b=Nzr, out=positive);
+
+
+    And(a=instruction[0], b=ng,  out=J0);
+    And(a=instruction[1], b=zr,  out=J1);
+    And(a=instruction[2], b=positive, out=J2);
+
+    // If something is true in the 3 j bits => we're jumping 
     // If its not => we're incrementing
     // If reset is true => nothing matters anyway (we're going to 0)
-    Or8Way(in=aRegOutPC[0..2], out=loadPc);
+    Or8Way(in[0]=J0, in[1]=J1, in[2]=J2, in[3..7]=false, out=preLoadPc);
+    
+    // only jump on C instruction (instruction[15] == 1)
+    Mux(a=false, b=preLoadPc, sel=instruction[15], out=loadPc);
+    // And(a=preLoadPc, b=instruction[15], out=loadPc);
+  
     // If we're not loading a new value, then we're incrementing
     // If the reset is true, it nulified load and inc so we 
     // *shouldn't* need to worry about them
     Not(in=loadPc, out=incPc);
-    PC(in=aRegOutPC, load=loadPc, inc=incPc, reset=reset, out=pc);    
+    
+    // FIXME: Are we returning out[0..14] or out[1..15]
+    PC(in=aRegOutPC, load=loadPc, inc=incPc, reset=reset, out[0..14]=pc);    
 
-
-    DRegister(in=aluOut, load=instruction[4], out=dOut);
-    ALU(x=dOut, y=aluIn2, zx=, nx=, zy=, ny=, f=, no=, out=aluOut, out=outM, zr=, ng=);
+    // TODO: WriteM
+    // Use 1st d value to determine the writeM value 
+    // Only write to M iff a C instruction is being called
+    // A instructions cannot directly write to M. 
+    // There is always an intermediate step of D=A => M=D @memlocation
+    Mux(a=false, b=instruction[3], sel=instruction[15], out=writeM);
 }
