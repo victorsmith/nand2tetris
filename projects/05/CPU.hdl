@@ -41,11 +41,15 @@ CHIP CPU {
     PARTS:
     // Put your code here:
 
-    // Determin if A or C instruction using instruction[15] (MSB)
+    // All A instructions are loaded into the A register  (@2 => A = 2) (instruction[15] == 0)
+    // SOME C instructions result in the ALU output being loaded into the 
+    // A register (when d3 aka instruction[5] == true and instruction[15] = 1)
+    // => The C example happened in our looping program
     Mux16(a=instruction, b=aluOut, sel=instruction[15], out=instr); 
 
-    // All A instructions are loaded into the A register  (instruction[15] == 0)
-    // SOME C instructions are loaded into the A register (when d3 aka instruction[5] == true)
+    // If A instruction (instruction[15] == 0) => Always load @x value into the register
+    // If C instruction (instruction[15] == 1) => Potentially load alu output 
+    //    (if instruction[5] == 1) into the register
     Mux(a=true, b=instruction[5], sel=instruction[15], out=loadA);
 
     ARegister(in=instr, load=loadA, out=aRegOut, out[0..2]=a02, out=aRegOutPC, out[0..14]=addressM );
@@ -86,9 +90,9 @@ CHIP CPU {
     And(a=Nng, b=Nzr, out=positive);
 
 
-    And(a=instruction[0], b=ng,  out=J0);
+    And(a=instruction[0], b=positive, out=J0);
     And(a=instruction[1], b=zr,  out=J1);
-    And(a=instruction[2], b=positive, out=J2);
+    And(a=instruction[2], b=ng,  out=J2);
 
     // If something is true in the 3 j bits => we're jumping 
     // If its not => we're incrementing
